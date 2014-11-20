@@ -1,0 +1,153 @@
+.xlrtr-form{
+	-webkit-transition:width 200ms ease;
+	width:100%;
+	margin:20px 0 0;
+	padding:20px;
+	border:1px solid #ccc;
+	-webkit-perspective:800;
+	perspective:800;
+	-webkit-box-sizing:border-box;
+	-moz-box-sizing:border-box;
+	box-sizing:border-box;
+}
+
+
+.xlrtr-flipper{
+	position:relative;
+	width:100%;
+	height:2.5rem;
+	transition:all 500ms ease;
+	transform-style:preserve-3d;
+}
+.xlrtr-flipper.flipped{
+	transform:rotateY(180deg);
+}
+.xlrtr-flipper.flipped.again{
+	transform:rotateY(360deg);
+}
+
+
+.xlrtr-flipper-a,
+.xlrtr-flipper-b,
+.xlrtr-flipper-c{
+	position:absolute;
+	top:0;
+	left:0;
+	width:100%;
+	height:100%;
+	backface-visibility:hidden;
+	text-align:center;
+}
+.xlrtr-flipper-a{
+	z-index:2;
+	transform:rotateY(0deg);
+}
+.xlrtr-flipper-b{
+	z-index:1;
+	transform:rotateY(180deg);
+}
+.xlrtr-flipper-c{
+	z-index:3;
+	transform:rotateY(0deg);
+	display:none;
+}
+.xlrtr-flipper.flipped.again .xlrtr-flipper-c{
+	display:block;
+}
+
+
+
+.xlrtr-button,
+.wp-core-ui .button.xlrtr-button,
+.wp-core-ui .button-primary.xlrtr-button{
+	position:relative;
+	height:100%;
+	margin:0 auto;
+	padding:0 3rem;
+	text-transform:uppercase;
+	font-weight:bold;
+	overflow:hidden;
+	line-height:2.5rem;
+	vertical-align:middle;
+}
+.xlrtr-button input{
+	position: absolute;
+	top: 0;
+	right: 0;
+	height: 100%;
+	opacity:0;
+	cursor:pointer;
+}
+
+
+.xlrtr-meter{
+	width:100%;
+	height:100%;
+	background-color:#dddddd;
+	-webkit-box-shadow:inset 0 0 10px rgba(0,0,0,0.25);
+}
+.xlrtr-progress{
+	-webkit-transition:width 200ms ease;
+	height:100%;
+	width:0%;
+	background-color:#0074a2;
+}
+
+
+.xlrtr-info{
+	position:relative;
+	text-align:center;
+	margin-bottom:0;
+}
+.xlrtr-note{
+	display:block;
+}
+.xlrtr-ok{
+	display:block;
+	font-size:1.2em;
+	font-weight:bold;
+	color:#006400;
+}
+.xlrtr-error{
+	display:block;
+	font-size:1.2em;
+	font-weight:bold;
+	color:#8b0000;
+}
+
+
+.xlrtr-past{
+	width:100%;
+	background-color:#fff;
+	border:1px solid #ccc;
+}
+.xlrtr-past th, td{
+	padding:10px;
+	border-bottom:1px solid #ccc;
+	text-align:left;
+}
+.xlrtr-past tr:nth-child(odd){
+	background-color:#fff;
+}
+.xlrtr-past tr:nth-child(even){
+	background-color:#f9f9f9;
+}
+.xlrtr-log-cell{
+	width:300px;
+}
+.xlrtr-log{
+	display:none;
+	padding:0 25px;
+}
+.xlrtr-log li{
+	list-style:disc;
+	margin:0;
+	padding:0 7px;
+	font-weight:bold;
+}
+.xlrtr-mode-inserted{
+	color:#006400;
+}
+.xlrtr-mode-error{
+	color:#8b0000;
+}
