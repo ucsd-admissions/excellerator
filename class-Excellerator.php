@@ -700,7 +700,7 @@ class Excellerator {
 			$index = false;
 
 			// Code
-			if( preg_match( '/^(A-Z)(A-Z)?$/', $ref ) ){
+			if( preg_match( '/^[A-Z][A-Z]?$/', $ref ) ){
 				$index = array_search( $ref, $col_refs['codes'] );
 			}
 			// Slug
@@ -843,7 +843,7 @@ class Excellerator {
 			$updated = wp_update_post( $compiled['post'] );
 
 			if( ! $updated ){
-				$this->error( 'Excellerator was unable to update a post for an unknown reason.' );
+				$this->error( "Excellerator was unable to update a post for an unknown reason. One possible explanation is that the post to be updated was deleted." );
 			}
 
 		}
@@ -984,7 +984,7 @@ class Excellerator {
 	 * Returns true if reference is a column slug.
 	 */
 	protected function is_col_slug( $ref ){
-		if( is_string( $ref ) && ! preg_match( '/^(A-Z)(A-Z)?$/', $ref ) ){
+		if( is_string( $ref ) && ! preg_match( '/^[A-Z][A-Z]?$/', $ref ) ){
 			return true;
 		}
 		return false;
