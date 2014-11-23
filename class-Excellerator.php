@@ -122,8 +122,8 @@ class Excellerator {
 
 		add_action( 'admin_menu', array( $this, 'register_upload_page' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts_and_styles' ) );
-		add_action( 'wp_ajax_xlrtr_' . $this->post_type . '_' . $this->slug, array( $this, 'handle_upload' ) );
-		add_action( 'wp_ajax_xlrtr_progress', array( $this, 'check_progress' ) );
+		add_action( 'wp_ajax_xlrtr_upload_' . $this->post_type . '_' . $this->slug, array( $this, 'handle_upload' ) );
+		add_action( 'wp_ajax_xlrtr_progress_' . $this->post_type . '_' . $this->slug, array( $this, 'handle_progress' ) );
 
 		$this->acf_enabled = function_exists( 'update_field' );
 	}
@@ -134,7 +134,7 @@ class Excellerator {
 	 * @since 0.0.1
 	 *
 	 * Creates a table to link unique IDs from Excel documents to their
-	 * created or updated post ID. Called on activation.
+	 * created or updated post IDs. Called on activation.
 	 */
 	public static function register_uniqid_table(){
 		
@@ -362,12 +362,12 @@ class Excellerator {
 			'xlrtrData', 
 			array(
 				'upload' => array(
-					'dest' => 'xlrtr_' . $this->post_type . '_' . $this->slug,
-					'nonce' => wp_create_nonce( 'xlrtr_' . $this->post_type . '_' . $this->slug ),
+					'dest' => 'xlrtr_upload_' . $this->post_type . '_' . $this->slug,
+					'nonce' => wp_create_nonce( 'xlrtr_upload_' . $this->post_type . '_' . $this->slug ),
 				),
 				'progress' => array(
-					'dest' => 'xlrtr_progress',
-					'nonce' => wp_create_nonce( 'xlrtr_progress' ),
+					'dest' => 'xlrtr_progress_' . $this->post_type . '_' . $this->slug,
+					'nonce' => wp_create_nonce( 'xlrtr_progress_' . $this->post_type . '_' . $this->slug ),
 				),
 			)
 		);
@@ -382,10 +382,10 @@ class Excellerator {
 	 * handle_progress
 	 * @since 0.0.1
 	 *
-	 * Handle ajax progress upload progress request.
+	 * Ajax handler that returns the current upload and processing status.
 	 */
-	public function check_progress(){
-		check_admin_referer( 'xlrtr_progress' );
+	public function handle_progress(){
+		check_admin_referer( 'xlrtr_progress_' . $this->post_type . '_' . $this->slug );
 		$this->print_log();
 		die();
 	}
@@ -399,11 +399,12 @@ class Excellerator {
 	 * handle_upload
 	 * @since 0.0.1
 	 *
-	 * Handle Excel document upload
+	 * Ajax handler that serves as the main spreadsheet upload and processing 
+	 * procedure, making use of most other methods below.
 	 */
 	public function handle_upload(){
 
-		check_admin_referer( 'xlrtr_' . $this->post_type . '_' . $this->slug );
+		check_admin_referer( 'xlrtr_upload_' . $this->post_type . '_' . $this->slug );
 
 		$this->log_init();
 
@@ -455,7 +456,9 @@ class Excellerator {
 
     		$this->filter( $row, $col_refs );
 
+    		// Don't work on the actual $template -- make a copy
     		$compiled = $template;
+
 		  	array_walk_recursive( $compiled, array( $this, 'interpolate' ), $row );
 
     		$this->process( $compiled, $options );
@@ -524,8 +527,10 @@ class Excellerator {
 		$col_refs = array();
 
 		foreach( $row as $i => $cell ){
+
 			// Slugs are sanitized versions of the header cell content
 			$col_refs['slugs'][ $i ] = sanitize_title( $cell );
+
 			// Codes are Excel-style references ('A','B',...'ZY','ZZ')
 			$col_refs['codes'][ $i ] = $this->get_col_code( $i );
 			$col_refs['total'] = count( $row );
@@ -543,7 +548,7 @@ class Excellerator {
 	 * @param array $col_refs Array linking string column references to their
 	 * index counterparts
 	 *
-	 * Converts the user-supplied template into an internal array with column
+	 * Converts the user-supplied map into an internal template with column
 	 * references simplified to indices and a structure that is easier to feed
 	 * to WordPress.
 	 */
@@ -689,8 +694,8 @@ class Excellerator {
 	 * @param array $col_refs Array linking string column references to their
 	 * index counterparts
 	 *
-	 * Walk the template, converting all column references (theretically, every
-	 * array leaf node) to 0-based column indices.
+	 * arry_walk_recursive callback. Walks the template, converting all column 
+	 * references (every array leaf node) to 0-based column indices.
 	 */
 	protected function simplify_references( &$ref, $key, $col_refs ){
 
@@ -703,6 +708,7 @@ class Excellerator {
 			if( preg_match( '/^[A-Z][A-Z]?$/', $ref ) ){
 				$index = array_search( $ref, $col_refs['codes'] );
 			}
+
 			// Slug
 			else {
 				$ref = sanitize_title( $ref );
@@ -742,7 +748,8 @@ class Excellerator {
 	 * @since 0.0.1
 	 *
 	 * @param array $row The row of data to filter.
-	 * @param array $col_refs An array connecting column references to indices.
+	 * @param array $col_refs Array linking string column references to their
+	 * index counterparts
 	 *
 	 * Applies required filters to row and each cell within.
 	 */
@@ -758,11 +765,12 @@ class Excellerator {
   	for( $i = 0; $i < count( $row ); $i++ ){
 
   		$ref_methods = array(
-  			'index' => $i + 1,
+  			'index' => $i + 1, // Convert 0-based index back to 1-based
   			'slug' => $col_refs['slugs'][ $i ],
   			'code' => $col_refs['codes'][ $i ],
   		);
 
+  		// Need to apply_filters for each column reference method!
   		foreach( $ref_methods as $ref_method ){
 
   			$was_blank = empty( $row[ $i ] );
@@ -782,10 +790,10 @@ class Excellerator {
 	 * @since 0.0.1
 	 * 
 	 * @param int $ref The array item to replace with row data. At this stage, 
-	 * this should consist of an integer representing the column get_c where the
+	 * this should consist of an integer representing the column where the
 	 * replacement data lives. 
-	 * @param int|str $key The key of the array item (ignored)
-	 * @param array $row The filtered row of data from the spreadsheet
+	 * @param int|str $key The key of the array item (ignored).
+	 * @param array $row The filtered row of data from the spreadsheet.
 	 *
 	 * array_walk_recursive callback working on the xlrtr_template. Compiles one 
 	 * row of data against the column reference stored in the template.
@@ -910,7 +918,7 @@ class Excellerator {
 	 *
 	 * @param string $filename The current filename from WordPress.
 	 *
-	 * Appends the date to the filename for reference.
+	 * Prepends a timestamp to the filename for reference.
 	 */
 	public function filter_filename( $filename ){
 		$filename = time() . '-' . $filename;
@@ -933,7 +941,7 @@ class Excellerator {
     }
 
     // We expect to receive 1-based numbering to match Excel row labels, but
-    // we want to work with 0-based.
+    // internally we want to work with 0-based.
     $options['header_row']--;
 
     return $options;
@@ -963,7 +971,7 @@ class Excellerator {
 	 * instance of Excellerator. $ref can be an integer referring to the
 	 * 0-based index of the column, a string with an uppercase letter designating
 	 * the column in the spreadsheet, or a string with the column header. All 
-	 * three filters will be called when processing the spreadsheet. 
+	 * three filters will be called when processing the spreadsheet.
 	 */
 	public function get_cell_filter_name( $ref, $sanitize = true ){
 
@@ -1039,7 +1047,7 @@ class Excellerator {
 	 * @param resource $file The uploaded file
 	 * 
 	 * Validates that the upload matches one of the accepted MIME types. 
-	 * NOTE: This function is for user checking, not security.
+	 * NOTE: This function is only useful for user checking, not security.
 	 */
 	protected function validate_file( $file ){
 		if( ! in_array( strtolower( $file['type'] ), $this->mime_types ) ){

@@ -1,11 +1,11 @@
 # Excellerator
 
-Excellerator is a WordPress plugin that builds on the open-source [Nuovo Spreadsheet Reader](https://github.com/nuovo/spreadsheet-reader) to sync a group of posts with data from a spreadsheet (including Excel .xls, .xlsx, .xlsm, Open Office .ods, or .csv). 
+Excellerator is a WordPress plugin that builds on the open-source [Nuovo Spreadsheet Reader](https://github.com/nuovo/spreadsheet-reader) to sync a group of posts with data from a spreadsheet. Supported file types include Excel .xls, .xlsx, .xlsm, Open Office .ods, and .csv. 
 
 **CAUTION: This plugin is under construction and has not yet been thoroughly tested.** Feel free to fork or tinker, but use in a live site is not yet recommended.
 
 ## Table of Contents
-1. [What is Excellerator?](#about)
+1. [What does Excellerator Do?](#about)
 2. [Installation and Usage](#usage)
 3. [Complete Installation Example](#example)
 4. [Constructor](#constructor)
@@ -18,8 +18,8 @@ Excellerator is a WordPress plugin that builds on the open-source [Nuovo Spreads
 
 Excellerator makes it easy to:
 
-*   Add multiple upload forms to the admin area, attached to a particular post type or to the Tools page
-*   Map spreadsheet columns to basic post properties, post metadata (including Advanced Custom Fields), or taxonomies
+*   Add multiple upload forms to the admin area
+*   Map spreadsheet columns to basic post properties, metadata (including Advanced Custom Fields), or taxonomies
 *   Filter spreadsheet data before it's imported
 *   Maintain unique ids on the spreadsheet side to avoid duplication when re-importing
 *   Download previously uploaded spreadsheets
@@ -28,13 +28,21 @@ Excellerator makes it easy to:
 
 Install and activate Excellerator as you would any other WordPress plugin.
 
-**Excellerator configuration is intentionally non-user-facing.** In your theme's functions.php or somewhere in your plugin, add an action to the `init` hook. 
+Excellerator configuration takes place in your theme or plugin to provide the simplest and most stable experience for your users. Simply add an action to the `init` hook, and in the callback function create a new Excellerator instance for each upload form you would like to appear on the site, using this syntax: 
 
-In the callback, create a new Excellerator instance for each upload form you would like to appear on the site. [View a complete installation example.](#complete-installation-example)
+```php
+<?php $xlrtr = new Excellerator( $map, $post_type, $title, $slug ); ?>
+```
 
-When documents are uploaded through an Excellerator form, they are processed using the [$map](#map-syntax) supplied in the constructor, and posts are either inserted or updated with data from the spreadsheet.
+[View full constructor documentation.](#constructor)
 
-Previously uploaded documents can be re-downloaded from the same page, providing some crude version control (or at least a backup). You can also view the log of inserted and updated posts for each import.
+When a spreadsheet is uploaded, it is processed according to the rules you have defined in the [$map](#map-syntax) array. Rows that Excellerator does not recognize are inserted as new posts, while rows that were previously inserted through Excellerator are updated.
+
+If you supply a $post_type parameter, that form will appear under that post type in the admin menu and imported posts will take that post type by default. Otherwise, the form will appear under the Tools menu. You can customize the form title with the $title parameter.
+
+You can create more than one form in a given place, but in that case you'll need to specify a $slug for each form so Excellerator can tell them apart.
+
+Documents previously uploaded through a given form are displayed on the form page and can be re-downloaded, providing some crude version control (or at least a backup). You can also view the log of inserted and updated posts for each import.
 
 ## <a name='example'></a>Complete Installation Example
 
@@ -47,7 +55,7 @@ function my_event_form(){
 		return;
 	}
 
-	// Map spreadsheet columns to post properties
+	// Map spreadsheet columns to properties
 	$map = array(
 		'xlrtr_settings' => array( 
 			'header_row' => 2, 
@@ -99,15 +107,15 @@ _(array) (required)_ An array that maps spreadsheet columns to post properties. 
 
 #### $post_type
 
-_(string) (optional)_ If you supply a post type slug, the form will appear underneath that post type's admin menu, and all imported posts will default to that post type unless your $map says otherwise.
+_(string) (optional)_ If you supply a post type slug, the form will appear underneath that post type's admin menu, and all imported posts will default to that post type unless your $map instructs otherwise.
 
 #### $title
 
-_(string) (optional)_ A custom title for the upload page.
+_(string) (optional)_ A custom title for the upload page, applied to both the form header and menu label.
 
 #### $slug
 
-_(string) (optional)_ In the rare case that you have more than one Excellerator form attached to a given post type (or more than one form _not_ attached to a post type), a unique slug is required so the system can tell the forms -- and the spreadsheets upload through them -- apart.
+_(string) (optional)_ If you have more than one Excellerator form attached to a given post type (or more than one form _not_ attached to a post type), a unique slug is required so the system can tell the forms -- and the spreadsheets upload through them -- apart.
 
 ### Return Values
 
@@ -117,44 +125,131 @@ Excellerator instance. This is mostly useful for [filtering data](#filters).
 
 The $map parameter is an associative array that tells Excellerator how to interpret the data it finds in each column of the uploaded spreadsheet. 
 
-Each array **key** represents a post property, and each array **value** refers to the column that holds the value for that property. For the most part, $map array elements have this syntax:
+Each array **key** represents a property of a post, and each array **value** refers to the column that holds the value for that property. For the most part, $map array elements have this syntax:
 
-`{post_property} => {column_reference}`
+`{property} => {column_reference}`
 
-Here's a complete example. Each part will be explained below:
+Here's a complete (though unlikely) $map example. Read on for an explanation of each part.
 
 ```php
 $map = array(
 	
 	'xlrtr_settings' => array(
-		// setting => default
-		'header_row' => 2, // There is a blank row before my header
+		'header_row' => 2, 
 	);
 
-	'uniqid' => 'A', // Col A has this spreadsheet's unique ID for this post.
+	'uniqid' => 'A',
 
-	'post_title' => 'B', // Col B has the post title.
-	'post_content' => 'C', // Col C has the post content.
+	'post/post_title' => 'B',
+	'post_content' => 'C',
 
-	'category' => 'D', // Col D has the post category.
-	'tax/phase' => 'E', // Col E has the value for phase, a custom taxonomy.
+	'tax/tag' => 'D',
+	'category' => 'E',
+	'cats' => 'F',
+	'tax/phase' => 'G',
 
-	'location' => 'F', // Col F will be saved to wp_postmeta, with the meta_key 'location'.
-	'meta/start_time' => 'G', // Col G will also be saved to wp_postmeta, with the meta_key 'start_time'.
-	'field_543f00c23c5c7' => 'H', // Col H will also be saved be postmeta, but in an Advanced Custom Fields-friendly way.
+	'field_543f00c23c5c7' => 'H',
+
+	'meta/location' => 'I', 
+	'meta/post_title' => 'J', 
+	'start_time' => 'K', 
 
 );
 ```
 
-### How to reference a post property
+### xlrtr_settings
 
-Excellerator will generally try to interpret your post properties (that is, your array **keys**) in this order:
+The **xlrtr_settings** key is reserved for an array of additional configuration options. If the defaults work for you, you can skip this.
 
-1. Is it a [wp_insert_post](http://codex.wordpress.org/Function_Reference/wp_insert_post#Parameters) property? (e.g. 'post_title', 'post_status') Note: some properties accepted by wp_insert_post, such as ID and guid, are not available.
-2. If not, is it a category or tag? (e.g. 'category', 'tag', but also 'categories', 'cat', 'cats', 'tags')
-3. If not, it must be metadata.
+**header_row:** The **1-based** row of the spreadsheet that has your column labels. (Default: 1)
+**force_publish:** Whether to import as a published post, rather than a draft. (Default: false)
+**append_tax:** Whether to append taxonomy terms to a post, rather than replacing existing ones. (Default:false)
 
-See [Tips and Tricks](#tips-and-tricks) for ways to explicitly reference a meta property or custom taxonomy.
+```php
+'xlrtr_settings' => array(
+	'header_row' => 2, // This spreadsheet's header is in row #2. 
+);
+```
+
+### uniqid
+
+The **uniqid** key is required and must reference a spreadsheet column with a string of characters that is **unique to the row** and **will not change between uploads.** 
+
+Excellerator will keep track of which uniqid refers to which post, so that you don't end up with duplicate posts when you import again in the future.
+
+```php
+'uniqid' => 'A', // This spreadsheet's unique id is in the first column.
+```
+
+### Post Properties
+
+Excellerator will generally try to interpret your properties in this order:
+
+1. Is it one of the supported [wp_insert_post](http://codex.wordpress.org/Function_Reference/wp_insert_post#Parameters) properties?
+2. If not, is it a category or tag?
+3. Is it an Advanced Custom Fields field ID? 
+4. If not, it must be general metadata.
+
+You can add the 'post/' prefix to basic post properties for your own clarity, but this is not actually required. If it's in [this list,](#assumed-post) Excellerator will know what you mean. 
+
+```php
+'post/post_title' => 'B',
+'post_content' => 'C', // works fine
+```
+
+Similarly, you don't need a 'tax/' prefix for built-in taxonomies or [anything in this list](#assumed-tax), but you do when saving to a custom taxonomy.
+
+```php
+'tax/tag' => 'D',
+'category' => 'E', // works fine
+'cats' => 'F', // shorthand is fine, as is adding terms from multiple columns
+'tax/phase' => 'G', // prefix is needed to save to custom taxonomy
+```
+
+If Advanced Custom Fields is activated and a property starts with 'field_', the Advanced Custom Fields API will be used to save that data, making it accessible to ACF in the future.
+
+```php
+'field_543f00c23c5c7' => 'H',
+```
+
+Whatever is left over is dumped into the wp_postmeta table as metadata.
+
+```php
+'meta/location' => 'I', 
+'meta/post_title' => 'J', // will save as metadata with 'post_title' meta_key!
+'start_time' => 'K', // doesn't match anything else, so this is metadata too
+```
+
+### <a name='assumed-post'></a>$map keys assumed to refer to basic post properties
+
+If Excellerator encounters one of these keys, it will pass the value directly to wp_insert_post. 
+
+* post_content
+* post_name
+* post_title
+* post_status
+* post_author
+* ping_status
+* post_type
+* post_parent
+* menu_order
+* to_ping
+* pinged
+* post_password
+* post_excerpt
+* post_date
+* post_date_gmt
+* comment_status
+* page_template
+
+### <a name='assumed-tax'></a>$map keys assumed to refer to taxonomies
+
+* category
+* categories
+* cat
+* cats
+* tag
+* tags
 
 ### How to reference a column
 
@@ -163,40 +258,6 @@ There are a couple ways to write your column references (the **values** of your 
 **Letters:** The simplest way is to reference columns using their letters as presented in the spreadsheet ('A', 'B' ... 'ZY', 'ZZ'). This is especially useful if your columns may be renamed in the future. (Just don't rearrange them!)
 
 **Labels:** You can also use the column's label, which for our purposes is defined as its value in the header row. If your column is titled 'Location', for example, you can just use that. This is useful if your columns may be rearranged in the future. (Just don't rename them!)
-
-### xlrtr_settings
-
-The **xlrtr_settings** key is reserved for an array of additional configuration options. If the defaults work for you, you can skip this.
-```php
-'xlrtr_settings' => array(
-	// setting => default
-	'header_row' => 1, // The 1-based row of the spreadsheet that has your column labels
-	'force_publish' => false, // Import as a published post rather than a draft
-	'append_tax' => false, // Append taxonomy terms rather than replacing
-);
-```
-
-### uniqid
-
-The **uniqid** key is required and must reference a spreadsheet column with a unique string of characters that does not change between uploads. Excellerator will keep track of which uniqid refers to which post, so that you don't end up with duplicate posts when you import again in the future.  
-
-### Tips and tricks
-
-You can influence the post property interpretation process in a few ways:
-
-**Prefix your key with 'meta/' to force Excellerator to interpret it as metadata.** 
-
-Example: `'meta/post_status' => 'A'` will insert the value from column A into the wp_postmeta table with meta_key 'post_status'. The post's actual post status will be unaffected.
-
-**When using Advanced Custom Fields, use the field ID as the key.** 
-
-Example: `'field_543f00f13c5c9' => 'A'` will use the ACF API to import your data so ACF can manipulate it in the future.
-
-**Prefix your key with 'tax/' to import to a custom taxonomy.** 
-
-Example: `'tax/my_taxonomy_slug' => 'A'` will insert your value as a my_taxonomy_slug term attached to this post, or error out if the taxonomy does not exist.
-
-**You can also prefix basic post properties with 'post/', but it has no benefit other than clarity.**
 
 ## <a name='filters'></a>Data Filters
 
@@ -264,6 +325,7 @@ function my_cell_filter( $cell ){
 
 * Excellerator installs a new table, '{prefix}_xlrtr_uniqid'.
 * Excellerator registers a private (non-user-facing) post type for internal use, 'xlrtr_upload'.
+* Excellerator registers a private (non-user-facing) taxonomy for internal use, 'xlrtr_tag'.
 * Excellerator stores uploaded spreadsheets in a new subdirectory of your uploads folder, 'xlrtr'.
 
 ## <a name='license'></a>License (Three-Clause BSD)
